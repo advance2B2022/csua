@@ -570,6 +570,12 @@ static void svm_run(SVM_VirtualMachine* svm) {
                 push_d(svm, dv);                
                 break;
             }
+            case SVM_PUSH_STRING; {// string追加
+		unit16_t s_idx = fetch2(svm);
+		string sv = read_static_string(svm, s_idx);
+		push_d(svm, sv);
+		break;
+	    }
             case SVM_POP_STATIC_INT: { // save i_val to global variable
                 uint16_t s_idx = fetch2(svm); 
                 int iv = pop_i(svm);
@@ -585,6 +591,13 @@ static void svm_run(SVM_VirtualMachine* svm) {
 //                exit(1);
                 break;
             }
+	    case SVM_POP_STATIC_STRING: { //　string追加
+		unit16_t s_idx = fetch2(svm);
+		string sv = pop_s(svm);
+		write_global_s(svm, s_idx, sv);
+//		  exit(1);
+		break;
+	    }
             case SVM_PUSH_STATIC_INT: {
                 uint16_t s_idx = fetch2(svm);
                 int iv = read_global_i(svm, s_idx);
@@ -598,6 +611,12 @@ static void svm_run(SVM_VirtualMachine* svm) {
                 push_d(svm, dv);
                 break;
             }
+	    case SVM_PUSH_STATIC_STRING: { //string追加
+		unit16_t s_idx = fetch2(svm);
+		string sv = read_global_s(svm, s_idx);
+		push_s(svm, sv);
+		break;
+	    }
             case SVM_ADD_INT: {
                 int iv1 = pop_i(svm);
                 int iv2 = pop_i(svm);
