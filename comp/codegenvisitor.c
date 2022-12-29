@@ -122,11 +122,17 @@ static void leave_doubleexpr(Expression* expr, Visitor* visitor) {
 }
 
 static void enter_stringexpr(Expression* expr, Visitor* visitor) {
-
+//    fprintf(stderr, "enter stringexpr : %s\n", expr->u.string_value);
 }
 
-static void leave_stringexpr(Expression* expr, Visitor* Visitor) {
-
+static void leave_stringexpr(Expression* expr, Visitor* visitor) {
+//    fprintf(stderr, "enter stringexpr : %s\n", expr->u.string_value);
+    CS_Executable* exec = ((CodegenVisitor*)visitor)->exec;
+    CS_ConstantPool cp;
+    cp.type = CS_CONSTANT_STRING;
+    cp.u.c_string = expr->u.string_value;
+    int idx = add_constant(exec, &cp);
+    gen_byte_code((CodegenVisitor*)visitor, SVM_PUSH_STRING, idx);
 }
 
 static void enter_identexpr(Expression* expr, Visitor* visitor) {
@@ -159,6 +165,11 @@ static void leave_identexpr(Expression* expr, Visitor* visitor) {
                                 expr->u.identifier.u.declaration->index);
                         break;
                     }
+                    case CS_STRING_TYPE: {
+                        gen_byte_code(c_visitor, SVM_PUSH_STATIC_STRING,
+                                expr->u.identifier.u.declaration->index);
+                        break;
+                    }
                     default: {
                         fprintf(stderr, "%d: unknown type in visit_normal in leave_identexpr codegenvisitor\n", expr->line_number); 
                         exit(1);
@@ -184,6 +195,11 @@ static void leave_identexpr(Expression* expr, Visitor* visitor) {
 //                        exit(1);
                         gen_byte_code(c_visitor, SVM_POP_STATIC_DOUBLE,
                                 expr->u.identifier.u.declaration->index);                      
+                        break;
+                    }
+                    case CS_STRING_TYPE: {
+                        gen_byte_code(c_visitor, SVM_POP_STATIC_STRING,
+                                expr->u.identifier.u.declaration->index);
                         break;
                     }
                     default: {
@@ -214,6 +230,10 @@ static void leave_identexpr(Expression* expr, Visitor* visitor) {
                         gen_byte_code(c_visitor, SVM_PUSH_STATIC_DOUBLE,
                                 expr->u.identifier.u.declaration->index);  
                         break;
+                    }
+                    case CS_STRING_TYPE: {
+                        gen_byte_code(c_visitor, SVM_PUSH_STACK_STRING,
+                                expr->u.identifier.u.declaration->index);
                     }
                     default: {
                         fprintf(stderr, "%d: unknown type in leave_identexpr codegenvisitor\n", expr->line_number); 
@@ -494,11 +514,11 @@ static void leave_incexpr(Expression* expr, Visitor* visitor) {
         exit(1);
     }
 
-   gen_byte_code((CodegenVisitor*)visitor, SVM_INCREMENT);
-   gen_byte_code((CodegenVisitor*)visitor, SVM_POP_STATIC_INT, 
-           expr->u.inc_dec->u.identifier.u.declaration->index);
-   gen_byte_code((CodegenVisitor*)visitor, SVM_PUSH_STATIC_INT, 
-           expr->u.inc_dec->u.identifier.u.declaration->index);
+    gen_byte_code((CodegenVisitor*)visitor, SVM_INCREMENT);
+    gen_byte_code((CodegenVisitor*)visitor, SVM_POP_STATIC_INT, 
+            expr->u.inc_dec->u.identifier.u.declaration->index);
+    gen_byte_code((CodegenVisitor*)visitor, SVM_PUSH_STATIC_INT, 
+            expr->u.inc_dec->u.identifier.u.declaration->index);
 }
 
 static void enter_decexpr(Expression* expr, Visitor* visitor) {
@@ -736,6 +756,11 @@ static void leave_declstmt(Statement* stmt, Visitor* visitor) {
                 }
                 case CS_DOUBLE_TYPE: {
                     gen_byte_code((CodegenVisitor*)visitor, SVM_POP_STATIC_DOUBLE, 
+                            decl->index);
+                    break;
+                }
+                case CS_STRING_TYPE: {
+                    gen_byte_code((CodegenVisitor*)visitor, SVM_POP_STATIC_STRING,
                             decl->index);
                     break;
                 }

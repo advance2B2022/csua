@@ -122,6 +122,10 @@ static void write_double(const double dv, FILE *fp) {
     write_reverse(&dv, sizeof(double), fp);    
 }
 
+static void write_string(const char *sv, FILE *fp) {
+    write_reverse(sv, sizeof(char[8]), fp);
+}
+
 static void write_bytes(uint8_t *p, int len, FILE* fp) {
     fwrite(p, 1, len, fp);
 }
@@ -181,6 +185,11 @@ static void serialize(CS_Executable* exec){
                 write_double(exec->constant_pool[i].u.c_double, fp);
                 break;
             }
+            case CS_CONSTANT_STRING: {
+                write_char(SVM_STRING, fp);
+                write_string(exec->constant_pool[i].u.c_string, fp);
+                break;
+            }
             default: {
                 fprintf(stderr, "undefined constant type\n in disasm");
                 exit(1);
@@ -201,6 +210,10 @@ static void serialize(CS_Executable* exec){
             }
             case CS_DOUBLE_TYPE: {
                 write_char(SVM_DOUBLE, fp);
+                break;
+            }
+            case CS_STRING_TYPE: {
+                write_char(SVM_STRING, fp);
                 break;
             }
             default: {
@@ -244,6 +257,10 @@ static void exec_disasm(CS_Executable* exec) {
             }
             case CS_CONSTANT_DOUBLE: {
                 fprintf(stderr, "%f\n", exec->constant_pool[i].u.c_double);
+                break;
+            }
+            case CS_CONSTANT_STRING: {
+                fprintf(stderr, "%s\n", exec->constant_pool[i].u.c_string);
                 break;
             }
             default: {
