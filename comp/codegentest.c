@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -121,6 +122,10 @@ static void write_double(const double dv, FILE *fp) {
     write_reverse(&dv, sizeof(double), fp);    
 }
 
+static void write_string(const char *sv, FILE *fp) {
+    write_reverse(sv, sizeof(char[8]), fp);
+}
+
 static void write_bytes(uint8_t *p, int len, FILE* fp) {
     fwrite(p, 1, len, fp);
 }
@@ -180,6 +185,11 @@ static void serialize(CS_Executable* exec){
                 write_double(exec->constant_pool[i].u.c_double, fp);
                 break;
             }
+            case CS_CONSTANT_STRING: {
+                write_char(SVM_STRING, fp);
+                write_string(exec->constant_pool[i].u.c_string, fp);
+                break;
+            }
             default: {
                 fprintf(stderr, "undefined constant type\n in disasm");
                 exit(1);
@@ -200,6 +210,10 @@ static void serialize(CS_Executable* exec){
             }
             case CS_DOUBLE_TYPE: {
                 write_char(SVM_DOUBLE, fp);
+                break;
+            }
+            case CS_STRING_TYPE: {
+                write_char(SVM_STRING, fp);
                 break;
             }
             default: {
@@ -245,6 +259,10 @@ static void exec_disasm(CS_Executable* exec) {
                 fprintf(stderr, "%f\n", exec->constant_pool[i].u.c_double);
                 break;
             }
+            case CS_CONSTANT_STRING: {
+                fprintf(stderr, "%s\n", exec->constant_pool[i].u.c_string);
+                break;
+            }
             default: {
                 fprintf(stderr, "undefined constant type\n in disasm");
                 exit(1);
@@ -252,7 +270,7 @@ static void exec_disasm(CS_Executable* exec) {
         }
 
     }
-               
+
     fprintf(stderr, "-- code --\n");
     for (int i = 0; i < exec->code_size; ++i) {
         if (i % 16 == 0) fprintf(stderr, "\n");
@@ -273,12 +291,15 @@ static void exec_disasm(CS_Executable* exec) {
         switch(code[i]) {
             case SVM_CAST_DOUBLE_TO_INT:
             case SVM_CAST_INT_TO_DOUBLE:
-            case SVM_PUSH_DOUBLE:
-            case SVM_POP_STATIC_DOUBLE:
             case SVM_PUSH_INT: 
             case SVM_POP_STATIC_INT: 
             case SVM_PUSH_STATIC_INT:
+            case SVM_PUSH_DOUBLE:
+            case SVM_POP_STATIC_DOUBLE:
             case SVM_PUSH_STATIC_DOUBLE:
+            case SVM_PUSH_STRING:
+            case SVM_POP_STATIC_STRING:
+            case SVM_PUSH_STATIC_STRING:
             case SVM_PUSH_FUNCTION:
             case SVM_POP:
             case SVM_ADD_INT:

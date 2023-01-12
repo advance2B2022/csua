@@ -44,8 +44,8 @@ static void gen_byte_code(CodegenVisitor* visitor, SVM_Opcode op, ...) {
                 break;
             }
         }
-    }    
-    va_end(ap);    
+    }
+    va_end(ap);
 }
 
 static int add_constant(CS_Executable* exec, CS_ConstantPool* cpp) {
@@ -75,15 +75,12 @@ static void leave_castexpr(Expression* expr, Visitor* visitor) {
             exit(1);
         }
     }
-    
-//    exit(1);
 }
 
 static void enter_boolexpr(Expression* expr, Visitor* visitor) {
 //    fprintf(stderr, "enter boolexpr : %d\n", expr->u.boolean_value);
 }
 static void leave_boolexpr(Expression* expr, Visitor* visitor) {
-//    fprintf(stderr, "leave boolexpr\n");
     CS_Executable* exec = ((CodegenVisitor*)visitor)->exec;
     CS_ConstantPool cp;
     cp.type = CS_CONSTANT_INT;
@@ -121,7 +118,21 @@ static void leave_doubleexpr(Expression* expr, Visitor* visitor) {
     cp.type = CS_CONSTANT_DOUBLE;
     cp.u.c_double = expr->u.double_value;
     int idx = add_constant(exec, &cp);
-    gen_byte_code((CodegenVisitor*)visitor, SVM_PUSH_DOUBLE, idx); 
+    gen_byte_code((CodegenVisitor*)visitor, SVM_PUSH_DOUBLE, idx);    
+}
+
+static void enter_stringexpr(Expression* expr, Visitor* visitor) {
+//    fprintf(stderr, "enter stringexpr : %s\n", expr->u.string_value);
+}
+
+static void leave_stringexpr(Expression* expr, Visitor* visitor) {
+//    fprintf(stderr, "enter stringexpr : %s\n", expr->u.string_value);
+    CS_Executable* exec = ((CodegenVisitor*)visitor)->exec;
+    CS_ConstantPool cp;
+    cp.type = CS_CONSTANT_STRING;
+    cp.u.c_string = expr->u.string_value;
+    int idx = add_constant(exec, &cp);
+    gen_byte_code((CodegenVisitor*)visitor, SVM_PUSH_STRING, idx);
 }
 
 static void enter_identexpr(Expression* expr, Visitor* visitor) {
@@ -153,8 +164,11 @@ static void leave_identexpr(Expression* expr, Visitor* visitor) {
                         gen_byte_code(c_visitor, SVM_PUSH_STATIC_DOUBLE,
                                 expr->u.identifier.u.declaration->index);
                         break;
-                        
-                                                
+                    }
+                    case CS_STRING_TYPE: {
+                        gen_byte_code(c_visitor, SVM_PUSH_STATIC_STRING,
+                                expr->u.identifier.u.declaration->index);
+                        break;
                     }
                     default: {
                         fprintf(stderr, "%d: unknown type in visit_normal in leave_identexpr codegenvisitor\n", expr->line_number); 
@@ -165,8 +179,7 @@ static void leave_identexpr(Expression* expr, Visitor* visitor) {
             break;
         }
         case VISIT_NOMAL_ASSIGN: {
-
-            // Variable is not a function, then store the value
+        // Variable is not a function, then store the value
             if (!expr->u.identifier.is_function) {
 //                fprintf(stderr, "index = %d\n", expr->u.identifier.u.declaration->index);
 //                fprintf(stderr, "type = %s\n", get_type_name(expr->type->basic_type));
@@ -182,6 +195,11 @@ static void leave_identexpr(Expression* expr, Visitor* visitor) {
 //                        exit(1);
                         gen_byte_code(c_visitor, SVM_POP_STATIC_DOUBLE,
                                 expr->u.identifier.u.declaration->index);                      
+                        break;
+                    }
+                    case CS_STRING_TYPE: {
+                        gen_byte_code(c_visitor, SVM_POP_STATIC_STRING,
+                                expr->u.identifier.u.declaration->index);
                         break;
                     }
                     default: {
@@ -212,6 +230,10 @@ static void leave_identexpr(Expression* expr, Visitor* visitor) {
                         gen_byte_code(c_visitor, SVM_PUSH_STATIC_DOUBLE,
                                 expr->u.identifier.u.declaration->index);  
                         break;
+                    }
+                    case CS_STRING_TYPE: {
+                        gen_byte_code(c_visitor, SVM_PUSH_STACK_STRING,
+                                expr->u.identifier.u.declaration->index);
                     }
                     default: {
                         fprintf(stderr, "%d: unknown type in leave_identexpr codegenvisitor\n", expr->line_number); 
@@ -277,6 +299,7 @@ static void enter_mulexpr(Expression* expr, Visitor* visitor) {
 //    fprintf(stderr, "enter mulexpr : *\n");
 }
 static void leave_mulexpr(Expression* expr, Visitor* visitor) {
+//    fprintf(stderr, "leave mulexpr\n");
     switch(expr->type->basic_type) {
         case CS_INT_TYPE: {
             gen_byte_code((CodegenVisitor*)visitor, SVM_MUL_INT);
@@ -290,7 +313,7 @@ static void leave_mulexpr(Expression* expr, Visitor* visitor) {
             fprintf(stderr, "%d: unknown type in leave_subexpr codegenvisitor\n", expr->line_number); 
             exit(1);
         }
-    }     
+    }    
 }
 
 static void enter_divexpr(Expression* expr, Visitor* visitor) {
@@ -340,7 +363,7 @@ static void enter_gtexpr(Expression* expr, Visitor* visitor) {
 //    fprintf(stderr, "enter gtexpr : > \n");
 }
 static void leave_gtexpr(Expression* expr, Visitor* visitor) {
-//    fprintf(stderr, "leave gtexpr\n");   
+//    fprintf(stderr, "leave gtexpr\n");
     switch(expr->u.binary_expression.left->type->basic_type) {
         case CS_INT_TYPE: {
             gen_byte_code((CodegenVisitor*)visitor, SVM_GT_INT);
@@ -354,16 +377,15 @@ static void leave_gtexpr(Expression* expr, Visitor* visitor) {
             fprintf(stderr, "%d: unknown type in leave_gtexpr codegenvisitor\n", expr->line_number); 
             exit(1);
         }
-    }       
+    }
 }
 
 static void enter_geexpr(Expression* expr, Visitor* visitor) {
 //    fprintf(stderr, "enter geexpr : >= \n");
-    
 }
 static void leave_geexpr(Expression* expr, Visitor* visitor) {
 //    fprintf(stderr, "leave geexpr\n");
-     switch(expr->u.binary_expression.left->type->basic_type) {
+    switch(expr->u.binary_expression.left->type->basic_type) {
         case CS_INT_TYPE: {
             gen_byte_code((CodegenVisitor*)visitor, SVM_GE_INT);
             break;
@@ -405,6 +427,7 @@ static void enter_leexpr(Expression* expr, Visitor* visitor) {
 //    fprintf(stderr, "enter leexpr : <= \n");
 }
 static void leave_leexpr(Expression* expr, Visitor* visitor) {
+//    fprintf(stderr, "leave leexpr\n");
     switch(expr->u.binary_expression.left->type->basic_type) {
         case CS_INT_TYPE: {
             gen_byte_code((CodegenVisitor*)visitor, SVM_LE_INT);
@@ -418,7 +441,7 @@ static void leave_leexpr(Expression* expr, Visitor* visitor) {
             fprintf(stderr, "%d: unknown type in leave_leexpr codegenvisitor\n", expr->line_number); 
             exit(1);
         }
-    }        
+    }       
 }
 
 static void enter_eqexpr(Expression* expr, Visitor* visitor) {
@@ -440,7 +463,7 @@ static void leave_eqexpr(Expression* expr, Visitor* visitor) {
             fprintf(stderr, "%d: unknown type in leave_eqexpr codegenvisitor\n", expr->line_number);             
             exit(1);
         }
-    }       
+    } 
 }
 
 static void enter_neexpr(Expression* expr, Visitor* visitor) {
@@ -486,19 +509,16 @@ static void enter_incexpr(Expression* expr, Visitor* visitor) {
 }
 static void leave_incexpr(Expression* expr, Visitor* visitor) {
 //    fprintf(stderr, "leave incexpr\n");
-    
     if (((CodegenVisitor*)visitor)->vi_state != VISIT_NORMAL) {
         fprintf(stderr, "expression is not assignable\n");
         exit(1);
     }
-    
-   gen_byte_code((CodegenVisitor*)visitor, SVM_INCREMENT);
-   gen_byte_code((CodegenVisitor*)visitor, SVM_POP_STATIC_INT, 
-           expr->u.inc_dec->u.identifier.u.declaration->index);
-   gen_byte_code((CodegenVisitor*)visitor, SVM_PUSH_STATIC_INT, 
-           expr->u.inc_dec->u.identifier.u.declaration->index);
-   
-   
+
+    gen_byte_code((CodegenVisitor*)visitor, SVM_INCREMENT);
+    gen_byte_code((CodegenVisitor*)visitor, SVM_POP_STATIC_INT, 
+            expr->u.inc_dec->u.identifier.u.declaration->index);
+    gen_byte_code((CodegenVisitor*)visitor, SVM_PUSH_STATIC_INT, 
+            expr->u.inc_dec->u.identifier.u.declaration->index);
 }
 
 static void enter_decexpr(Expression* expr, Visitor* visitor) {
@@ -510,7 +530,7 @@ static void leave_decexpr(Expression* expr, Visitor* visitor) {
         fprintf(stderr, "expression is not assignable\n");
         exit(1);
     }
-    
+
     gen_byte_code((CodegenVisitor*)visitor, SVM_DECREMENT);
     gen_byte_code((CodegenVisitor*)visitor, SVM_POP_STATIC_INT, 
             expr->u.inc_dec->u.identifier.u.declaration->index);
@@ -536,40 +556,37 @@ static void leave_minusexpr(Expression* expr, Visitor* visitor) {
             fprintf(stderr, "%d: unknown type in leave_minusexpr codegenvisitor\n", expr->line_number); 
             exit(1);
         }
-    }    
+    }
 }
 
 static void enter_lognotexpr(Expression* expr, Visitor* visitor) {
 //    fprintf(stderr, "enter lognotexpr : ! \n");
 }
 static void leave_lognotexpr(Expression* expr, Visitor* visitor) {
-//    fprintf(stderr, "leave lognotexpr\n");    
+//    fprintf(stderr, "leave lognotexpr\n");
     gen_byte_code((CodegenVisitor*)visitor, SVM_LOGICAL_NOT); 
 }
 
 static void enter_assignexpr(Expression* expr, Visitor* visitor) {
 //    fprintf(stderr, "enter assignexpr : %d \n", expr->u.assignment_expression.aope);
-    
+
 //    printf("ope = %d\n", expr->u.assignment_expression.aope);
     if (expr->u.assignment_expression.aope != ASSIGN) {
         if (expr->u.assignment_expression.left->kind == IDENTIFIER_EXPRESSION &&
                 expr->u.assignment_expression.left->u.identifier.is_function == CS_FALSE) {
             gen_byte_code((CodegenVisitor*)visitor, SVM_PUSH_STATIC_INT,
                     expr->u.assignment_expression.left->u.identifier.u.declaration->index);
-            
+
 //gen_byte_code((CodegenVisitor*)visitor, SVM_PUSH_STATIC_INT, 
 //           expr->u.inc_dec->u.identifier.u.declaration->index);            
-            
+
         }
     }
-    
-    
-    ((CodegenVisitor*)visitor)->assign_depth++;
 }
 static void leave_assignexpr(Expression* expr, Visitor* visitor) {
 //    fprintf(stderr, "leave assignexpr\n");
     CodegenVisitor* c_visitor = (CodegenVisitor*)visitor;
-    
+
     --c_visitor->assign_depth;
     if (c_visitor->vf_state == VISIT_F_CALL) {
         c_visitor->vi_state = VISIT_NORMAL;
@@ -672,16 +689,11 @@ static void notify_assignexpr(Expression* expr, Visitor* visitor) {
     }
 
     ((CodegenVisitor*)visitor)->vi_state = VISIT_NOMAL_ASSIGN;
-
-    
-    
-    
 }
 
 static void enter_funccallexpr(Expression* expr, Visitor* visitor) {
 //    fprintf(stderr, "enter function call :\n");
     ((CodegenVisitor*)visitor)->vf_state = VISIT_F_CALL;
-    
 }
 static void leave_funccallexpr(Expression* expr, Visitor* visitor) {
 //    fprintf(stderr, "leave function call\n");
@@ -729,35 +741,38 @@ static void enter_declstmt(Statement* stmt, Visitor* visitor) {
 static void leave_declstmt(Statement* stmt, Visitor* visitor) {
 //    fprintf(stderr, "leave declstmt\n");
     if (stmt->u.declaration_s->initializer) {
-         Declaration* decl = cs_search_decl_in_block(); // dummy
-         if (!decl) {
+        Declaration* decl = cs_search_decl_in_block(); // dummy
+        if (!decl) {
 
-             decl = cs_search_decl_global(stmt->u.declaration_s->name);
+            decl = cs_search_decl_global(stmt->u.declaration_s->name);
 
 
-             switch(decl->type->basic_type) {
-                 case CS_BOOLEAN_TYPE:
-                 case CS_INT_TYPE: {
-                     gen_byte_code((CodegenVisitor*)visitor, SVM_POP_STATIC_INT, 
-                             decl->index);
-                     break;
-                 }
-                 case CS_DOUBLE_TYPE: {
-                     gen_byte_code((CodegenVisitor*)visitor, SVM_POP_STATIC_DOUBLE, 
-                             decl->index);
-                     break;
-                 }
-                 default: {
-                     fprintf(stderr, "unknown type in leave_declstmt\n");
-                     exit(1);
-                 }
-             }
-             
-             
-         }
+            switch(decl->type->basic_type) {
+                case CS_BOOLEAN_TYPE:
+                case CS_INT_TYPE: {
+                    gen_byte_code((CodegenVisitor*)visitor, SVM_POP_STATIC_INT, 
+                            decl->index);
+                    break;
+                }
+                case CS_DOUBLE_TYPE: {
+                    gen_byte_code((CodegenVisitor*)visitor, SVM_POP_STATIC_DOUBLE, 
+                            decl->index);
+                    break;
+                }
+                case CS_STRING_TYPE: {
+                    gen_byte_code((CodegenVisitor*)visitor, SVM_POP_STATIC_STRING,
+                            decl->index);
+                    break;
+                }
+                default: {
+                    fprintf(stderr, "unknown type in leave_declstmt\n");
+                    exit(1);
+                }
+            }
+
+
+        }
     }
-    
-    
 }
 
 
@@ -803,6 +818,7 @@ CodegenVisitor* create_codegen_visitor(CS_Compiler* compiler, CS_Executable *exe
     enter_expr_list[BOOLEAN_EXPRESSION]       = enter_boolexpr;
     enter_expr_list[INT_EXPRESSION]           = enter_intexpr;
     enter_expr_list[DOUBLE_EXPRESSION]        = enter_doubleexpr;
+    enter_expr_list[STRING_EXPRESSION]        = enter_stringexpr;
     enter_expr_list[IDENTIFIER_EXPRESSION]    = enter_identexpr;    
     enter_expr_list[ADD_EXPRESSION]           = enter_addexpr;
     enter_expr_list[SUB_EXPRESSION]           = enter_subexpr;
@@ -835,6 +851,7 @@ CodegenVisitor* create_codegen_visitor(CS_Compiler* compiler, CS_Executable *exe
     leave_expr_list[BOOLEAN_EXPRESSION]       = leave_boolexpr;
     leave_expr_list[INT_EXPRESSION]           = leave_intexpr;
     leave_expr_list[DOUBLE_EXPRESSION]        = leave_doubleexpr;
+    leave_expr_list[STRING_EXPRESSION]        = leave_stringexpr;
     leave_expr_list[IDENTIFIER_EXPRESSION]    = leave_identexpr;    
     leave_expr_list[ADD_EXPRESSION]           = leave_addexpr;
     leave_expr_list[SUB_EXPRESSION]           = leave_subexpr;

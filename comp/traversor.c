@@ -54,6 +54,7 @@ static void traverse_expr_children(Expression* expr, Visitor *visitor) {
     switch(expr->kind) {
         case BOOLEAN_EXPRESSION:
         case IDENTIFIER_EXPRESSION:
+        case STRING_EXPRESSION:
         case DOUBLE_EXPRESSION:
         case INT_EXPRESSION: {
             break;
@@ -96,7 +97,7 @@ static void traverse_expr_children(Expression* expr, Visitor *visitor) {
                     traverse_expr(args->expr, visitor);
                 }
             }
-            traverse_expr(expr->u.function_call_expression.function, visitor);            
+            traverse_expr(expr->u.function_call_expression.function, visitor);      
             break;
         }
         case LOGICAL_AND_EXPRESSION:
