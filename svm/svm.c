@@ -36,6 +36,16 @@ static double read_double(uint8_t **p) {
 
 }
 
+static char* read_string(uint8_t **p) {
+    uint8_t v1 = **p; (*p)++;
+    uint8_t v2 = **p; (*p)++;
+    uint8_t v3 = **p; (*p)++;
+    uint8_t v4 = **p; (*p)++;        
+    uint32_t v =( v1 << 24 | v2 << 16 | v3 << 8 | v4);
+    char* str = (char*)&v;
+    return str;
+}
+
 static uint8_t read_byte(uint8_t **p) {
     uint8_t v = **p; (*p)++;
     return v;
@@ -107,6 +117,10 @@ static void disasm(SVM_VirtualMachine* svm) {
                 printf("%f\n", svm->constant_pool[i].u.c_double);
                 break;
             }
+            case SVM_STRING: {
+                printf("%s\n", svm->constant_pool[i].u.c_string);
+                break;
+            }
             default: {
                 exit(1);
             }
@@ -124,6 +138,10 @@ static void disasm(SVM_VirtualMachine* svm) {
             }
             case SVM_DOUBLE: {
                 printf("DOUBLE\n");                
+                break;
+            }
+            case SVM_STRING: {
+                printf("STRING\n");
                 break;
             }
             default: {
@@ -146,7 +164,10 @@ static void disasm(SVM_VirtualMachine* svm) {
             case SVM_POP_STATIC_DOUBLE:            
             case SVM_PUSH_INT:
             case SVM_POP_STATIC_INT: 
-            case SVM_PUSH_STATIC_INT:
+            case SVM_PUSH_STATIC_INT:         
+            case SVM_PUSH_STRING:
+            case SVM_POP_STATIC_STRING: 
+            case SVM_PUSH_STATIC_STRING:
             case SVM_PUSH_STATIC_DOUBLE:
             case SVM_PUSH_FUNCTION:
             case SVM_POP:
@@ -238,6 +259,13 @@ static void parse(uint8_t* buf, SVM_VirtualMachine* svm) {
                 svm->constant_pool[i].u.c_double = dv;                
                 break;
             }
+            case SVM_STRING: {
+                char* str = read_string(&pos);
+//                printf("constant[%d] = %s\n", i, str);
+                svm->constant_pool[i].type = SVM_STRING;
+                svm->constant_pool[i].u.c_string = str;
+                break;
+            }
             default: {
                 fprintf(stderr, "undefined constant type\n in parse");
                 exit(1);
@@ -259,6 +287,10 @@ static void parse(uint8_t* buf, SVM_VirtualMachine* svm) {
             }
             case SVM_DOUBLE: {
 //                printf("DOUBLE\n");                
+                break;
+            }
+            case SVM_STRING: {
+//                printf("STRING\n");                
                 break;
             }
             defulat: {
@@ -352,6 +384,10 @@ static double read_static_double(SVM_VirtualMachine* svm, uint16_t idx) {
     return read_static(svm, idx)->u.c_double;
 }
 
+static char* read_static_string(SVM_VirtualMachine* svm, uint16_t idx) {
+    return read_static(svm, idx)->u.c_string;
+}
+
 static void push_i(SVM_VirtualMachine* svm, int iv) {
     svm->stack[svm->sp].ival = iv;
     svm->stack_value_type[svm->sp] = SVM_INT;
@@ -364,6 +400,12 @@ static void push_d(SVM_VirtualMachine* svm, double dv) {
     svm->sp++;
 }
 
+static void push_s(SVM_VirtualMachine* svm, char* str) {
+    svm->stack[svm->sp].str = str;
+    svm->stack_value_type[svm->sp] = SVM_STRING;
+    svm->sp++;
+}
+
 static int pop_i(SVM_VirtualMachine *svm) {
     --svm->sp;
     return svm->stack[svm->sp].ival;
@@ -373,6 +415,12 @@ static double pop_d(SVM_VirtualMachine* svm) {
     --svm->sp;
     return svm->stack[svm->sp].dval;
 }
+
+static char* pop_s(SVM_VirtualMachine* svm) {
+    --svm->sp;
+    return svm->stack[svm->sp].str;
+}
+
 
 static void write_i(SVM_Value* head, uint32_t offset, uint32_t idx, int iv) {
     head[offset+idx].ival = iv;
@@ -388,6 +436,13 @@ static double read_d(SVM_Value* head, uint32_t offset, uint32_t idx) {
     return head[offset+idx].dval;
 }
 
+static void write_s(SVM_Value* head, uint32_t offset, uint32_t idx, char* str) {
+    head[offset+idx].str = str;
+}
+static char* read_s(SVM_Value* head, uint32_t offset, uint32_t idx) {
+    return head[offset+idx].str;
+}
+
 
 static void write_global_i(SVM_VirtualMachine* svm, uint32_t idx, int iv) {
     write_i(svm->global_variables, 0, idx, iv);
@@ -401,6 +456,13 @@ static void write_global_d(SVM_VirtualMachine* svm, uint32_t idx, double dv) {
 }
 static double read_global_d(SVM_VirtualMachine* svm, uint32_t idx) {
     return read_d(svm->global_variables, 0, idx);
+}
+
+static void write_global_s(SVM_VirtualMachine* svm, uint32_t idx, char* str) {
+    write_s(svm->global_variables, 0, idx, str);
+}
+static char* read_global_s(SVM_VirtualMachine* svm, uint32_t idx) {
+    return read_s(svm->global_variables, 0, idx);
 }
 
 
@@ -487,6 +549,12 @@ static void svm_run(SVM_VirtualMachine* svm) {
                 push_d(svm, dv);                
                 break;
             }
+            case SVM_PUSH_STRING: {
+                uint16_t s_idx = fetch2(svm);
+                char* str = read_static_string(svm, s_idx);
+                push_s(svm, str);                
+                break;
+            }
             case SVM_POP_STATIC_INT: { // save i_val to global variable
                 uint16_t s_idx = fetch2(svm); 
                 int iv = pop_i(svm);
@@ -502,6 +570,13 @@ static void svm_run(SVM_VirtualMachine* svm) {
 //                exit(1);
                 break;
             }
+            case SVM_POP_STATIC_STRING: { // save d_val to global variable
+                uint16_t s_idx = fetch2(svm); 
+                char* str = pop_s(svm);
+                write_global_s(svm, s_idx, str);
+//                exit(1);
+                break;
+            }
             case SVM_PUSH_STATIC_INT: {
                 uint16_t s_idx = fetch2(svm);
                 int iv = read_global_i(svm, s_idx);
@@ -513,6 +588,12 @@ static void svm_run(SVM_VirtualMachine* svm) {
                 uint16_t s_idx = fetch2(svm);
                 double dv = read_global_d(svm, s_idx);
                 push_d(svm, dv);
+                break;
+            }
+            case SVM_PUSH_STATIC_STRING: {
+                uint16_t s_idx = fetch2(svm);
+                char* str = read_global_s(svm, s_idx);
+                push_s(svm, str);
                 break;
             }
             case SVM_ADD_INT: {
@@ -572,7 +653,7 @@ static void svm_run(SVM_VirtualMachine* svm) {
             case SVM_MOD_DOUBLE: {
                 double dv1 = pop_d(svm);
                 double dv2 = pop_d(svm);
-                push_d(svm, fmod(dv2, dv1));
+                push_d(svm, 1); //fmod(dv2, dv1)
                 break;
             }
             case SVM_LT_INT: {

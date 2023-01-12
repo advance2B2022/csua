@@ -1,6 +1,5 @@
-int print();
-int j;
 int i;
-i = 4;
-j = i = i + 5;
-print();
+i = 3;
+string s;
+s = "hoge";
+s = "test";

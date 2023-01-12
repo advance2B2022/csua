@@ -97,7 +97,7 @@ static void leave_intexpr(Expression* expr, Visitor* visitor) {
     CS_Executable* exec = ((CodegenVisitor*)visitor)->exec;
     CS_ConstantPool cp;
     cp.type = CS_CONSTANT_INT;
-    cp.u.c_int = expr->u.int_value;
+    cp.u.c_string = expr->u.string_value;
     int idx = add_constant(exec, &cp);
     gen_byte_code((CodegenVisitor*)visitor, SVM_PUSH_INT, idx);    
 }
@@ -107,6 +107,20 @@ static void enter_doubleexpr(Expression* expr, Visitor* visitor) {
 }
 static void leave_doubleexpr(Expression* expr, Visitor* visitor) {
 //    fprintf(stderr, "leave doubleexpr\n");            
+}
+
+static void enter_strexpr(Expression* expr, Visitor* visitor) {
+//    fprintf(stderr, "enter intexpr : %d\n", expr->u.int_value);
+
+}
+static void leave_strexpr(Expression* expr, Visitor* visitor) {
+//    fprintf(stderr, "leave intexpr\n");
+    CS_Executable* exec = ((CodegenVisitor*)visitor)->exec;
+    CS_ConstantPool cp;
+    cp.type = CS_CONSTANT_STRING;
+    cp.u.c_int = expr->u.int_value;
+    int idx = add_constant(exec, &cp);
+    gen_byte_code((CodegenVisitor*)visitor, SVM_PUSH_STRING, idx);    
 }
 
 static void enter_identexpr(Expression* expr, Visitor* visitor) {
@@ -137,6 +151,11 @@ static void leave_identexpr(Expression* expr, Visitor* visitor) {
                         exit(1);
                                                 
                     }
+                    case CS_STRING_TYPE: {
+                        gen_byte_code(c_visitor, SVM_PUSH_STATIC_STRING,
+                                expr->u.identifier.u.declaration->index);
+                        break;
+                    }
                     default: {
                         fprintf(stderr, "%d: unknown type in visit_normal in leave_identexpr codegenvisitor\n", expr->line_number); 
                         exit(1);
@@ -162,6 +181,11 @@ static void leave_identexpr(Expression* expr, Visitor* visitor) {
                         fprintf(stderr, "double not implementerd in leave_identexpr codegenvisitor\n");
                         exit(1);
                     }
+                    case CS_STRING_TYPE: {
+                        gen_byte_code(c_visitor, SVM_POP_STATIC_STRING, 
+                                expr->u.identifier.u.declaration->index);
+                        break;
+                    }
                     default: {
                         fprintf(stderr, "unknown type in leave_identexpr codegenvisitor\n");
                         exit(1);
@@ -184,6 +208,11 @@ static void leave_identexpr(Expression* expr, Visitor* visitor) {
                         fprintf(stderr, "double not implementerd assign_depth in leave_identexpr codegenvisitor\n");
                         exit(1);
                                                 
+                    }
+                    case CS_STRING_TYPE: {
+                        gen_byte_code(c_visitor, SVM_PUSH_STATIC_STRING,
+                                expr->u.identifier.u.declaration->index);
+                        break;
                     }
                     default: {
                         fprintf(stderr, "%d: unknown type in leave_identexpr codegenvisitor\n", expr->line_number); 
@@ -443,6 +472,7 @@ CodegenVisitor* create_codegen_visitor(CS_Compiler* compiler, CS_Executable *exe
     enter_expr_list[BOOLEAN_EXPRESSION]       = enter_boolexpr;
     enter_expr_list[INT_EXPRESSION]           = enter_intexpr;
     enter_expr_list[DOUBLE_EXPRESSION]        = enter_doubleexpr;
+    enter_expr_list[STRING_EXPRESSION]        = enter_strexpr;
     enter_expr_list[IDENTIFIER_EXPRESSION]    = enter_identexpr;    
     enter_expr_list[ADD_EXPRESSION]           = enter_addexpr;
     enter_expr_list[SUB_EXPRESSION]           = enter_subexpr;
@@ -475,6 +505,7 @@ CodegenVisitor* create_codegen_visitor(CS_Compiler* compiler, CS_Executable *exe
     leave_expr_list[BOOLEAN_EXPRESSION]       = leave_boolexpr;
     leave_expr_list[INT_EXPRESSION]           = leave_intexpr;
     leave_expr_list[DOUBLE_EXPRESSION]        = leave_doubleexpr;
+    leave_expr_list[STRING_EXPRESSION]        = leave_strexpr;
     leave_expr_list[IDENTIFIER_EXPRESSION]    = leave_identexpr;    
     leave_expr_list[ADD_EXPRESSION]           = leave_addexpr;
     leave_expr_list[SUB_EXPRESSION]           = leave_subexpr;

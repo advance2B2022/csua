@@ -205,7 +205,8 @@ typedef struct {
 
 typedef enum {
     CS_CONSTANT_INT,
-    CS_CONSTANT_DOUBLE
+    CS_CONSTANT_DOUBLE,
+    CS_CONSTANT_STRING
 } CS_ConstantType;
 
 typedef struct {
@@ -213,6 +214,7 @@ typedef struct {
     union {
       int    c_int;
       double c_double;
+      char *c_string;
     }u;    
 } CS_ConstantPool;
 
