@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -121,6 +122,10 @@ static void write_double(const double dv, FILE *fp) {
     write_reverse(&dv, sizeof(double), fp);    
 }
 
+static void write_string(const char *sv, FILE *fp) {
+    write_reverse(sv, sizeof(char[8]), fp);
+}
+
 static void write_bytes(uint8_t *p, int len, FILE* fp) {
     fwrite(p, 1, len, fp);
 }
@@ -151,7 +156,7 @@ static int count_stack_size(uint8_t* code, size_t len) {
 static void serialize(CS_Executable* exec){
     FILE *fp;
     
-    if ((fp = fopen("a.csb", "wb")) == NULL) {
+    if ((fp = fopen("../svm/a.csb", "wb")) == NULL) {
         fprintf(stderr, "Error\n");
         exit(1);
     }
@@ -173,9 +178,16 @@ static void serialize(CS_Executable* exec){
                 write_int(exec->constant_pool[i].u.c_int, fp);
                 break;
             }
-            case CS_CONSTANT_DOUBLE: {
+            case CS_CONSTANT_DOUBLE: {                
+//                printf("write double\n");
+//                printf("dval = %f\n", exec->constant_pool[i].u.c_double);
                 write_char(SVM_DOUBLE, fp);
-                write_double(exec->constant_pool[0].u.c_double, fp);
+                write_double(exec->constant_pool[i].u.c_double, fp);
+                break;
+            }
+            case CS_CONSTANT_STRING: {
+                write_char(SVM_STRING, fp);
+                write_string(exec->constant_pool[i].u.c_string, fp);
                 break;
             }
             default: {
@@ -198,6 +210,10 @@ static void serialize(CS_Executable* exec){
             }
             case CS_DOUBLE_TYPE: {
                 write_char(SVM_DOUBLE, fp);
+                break;
+            }
+            case CS_STRING_TYPE: {
+                write_char(SVM_STRING, fp);
                 break;
             }
             default: {
@@ -224,9 +240,10 @@ static void exec_disasm(CS_Executable* exec) {
     fprintf(stderr, "< Disassemble Start >\n");
     fprintf(stderr, "-- global variables --\n");
     for (int i = 0; i < exec->global_variable_count; ++i) {
+        if (i % 10 == 0) fprintf(stderr, "\n");        
         fprintf(stderr, "[%d]%s:%s ", i, exec->global_variable[i].name, 
                 get_type_name(exec->global_variable[i].type->basic_type));
-        if (i % 10 == 0) fprintf(stderr, "\n");
+
     }
     fprintf(stderr, "\n");
     fprintf(stderr, "-- constant pool --\n");
@@ -242,6 +259,10 @@ static void exec_disasm(CS_Executable* exec) {
                 fprintf(stderr, "%f\n", exec->constant_pool[i].u.c_double);
                 break;
             }
+            case CS_CONSTANT_STRING: {
+                fprintf(stderr, "%s\n", exec->constant_pool[i].u.c_string);
+                break;
+            }
             default: {
                 fprintf(stderr, "undefined constant type\n in disasm");
                 exit(1);
@@ -249,7 +270,7 @@ static void exec_disasm(CS_Executable* exec) {
         }
 
     }
-               
+
     fprintf(stderr, "-- code --\n");
     for (int i = 0; i < exec->code_size; ++i) {
         if (i % 16 == 0) fprintf(stderr, "\n");
@@ -268,12 +289,48 @@ static void exec_disasm(CS_Executable* exec) {
     for (int i = 0; i < exec->code_size; ++i) {
         OpcodeInfo *oinfo = &svm_opcode_info[code[i]];
         switch(code[i]) {
+            case SVM_CAST_DOUBLE_TO_INT:
+            case SVM_CAST_INT_TO_DOUBLE:
             case SVM_PUSH_INT: 
             case SVM_POP_STATIC_INT: 
             case SVM_PUSH_STATIC_INT:
+            case SVM_PUSH_DOUBLE:
+            case SVM_POP_STATIC_DOUBLE:
+            case SVM_PUSH_STATIC_DOUBLE:
+            case SVM_PUSH_STRING:
+            case SVM_POP_STATIC_STRING:
+            case SVM_PUSH_STATIC_STRING:
             case SVM_PUSH_FUNCTION:
             case SVM_POP:
             case SVM_ADD_INT:
+            case SVM_ADD_DOUBLE:
+            case SVM_SUB_INT:
+            case SVM_SUB_DOUBLE:
+            case SVM_MUL_INT:
+            case SVM_MUL_DOUBLE:
+            case SVM_DIV_INT:
+            case SVM_DIV_DOUBLE:
+            case SVM_MOD_INT:
+            case SVM_MOD_DOUBLE:
+            case SVM_LT_INT:
+            case SVM_LT_DOUBLE:
+            case SVM_LE_INT:
+            case SVM_LE_DOUBLE:
+            case SVM_GT_INT:
+            case SVM_GT_DOUBLE:
+            case SVM_GE_INT:
+            case SVM_GE_DOUBLE:
+            case SVM_EQ_INT:
+            case SVM_EQ_DOUBLE:
+            case SVM_NE_INT:
+            case SVM_NE_DOUBLE:
+            case SVM_LOGICAL_AND:
+            case SVM_LOGICAL_OR:
+            case SVM_LOGICAL_NOT:
+            case SVM_MINUS_INT:
+            case SVM_MINUS_DOUBLE:
+            case SVM_INCREMENT:
+            case SVM_DECREMENT:
             case SVM_INVOKE: {
                 add_string(&dinfo, oinfo->opname);
                 break;

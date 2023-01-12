@@ -146,8 +146,11 @@ static void disasm(SVM_VirtualMachine* svm) {
             case SVM_POP_STATIC_DOUBLE:            
             case SVM_PUSH_INT:
             case SVM_POP_STATIC_INT: 
+            case SVM_PUSH_STRING:
+            case SVM_POP_STATIC_STRING:
             case SVM_PUSH_STATIC_INT:
             case SVM_PUSH_STATIC_DOUBLE:
+            case SVM_PUSH_STATIC_STRING:
             case SVM_PUSH_FUNCTION:
             case SVM_POP:
             case SVM_ADD_INT:

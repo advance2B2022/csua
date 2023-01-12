@@ -10,7 +10,7 @@ all: $(TARGET)
 
 $(TARGET): $(OBJS) $(MEMORY)
 	make -C ../memory
-	$(CC) -o $@ $^
+	$(CC) -o $@ $^ -lm
 
 .c.o:
 	$(CC) $(CFLAGS) $*.c
