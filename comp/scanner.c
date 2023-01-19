@@ -132,7 +132,7 @@ retry:
         }
         case '"': {
             uint8_t str_end_flg = 0;
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 8; i++) {
                 c = read();
                 if(c == '"'){
                     str_end_flg = 1;
